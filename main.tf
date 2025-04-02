@@ -3,6 +3,10 @@ resource "openstack_compute_keypair_v2" "keypair" {
   name       = "${var.name}-keys"
   region     = var.region
   public_key = file(var.ssh_public_key)
+
+  lifecycle {
+    ignore_changes = [public_key]
+  }
 }
 
 ## Basic security group
