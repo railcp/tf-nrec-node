@@ -16,6 +16,13 @@ resource "openstack_networking_secgroup_v2" "basic" {
   description = "Security groups for allowing SSH and ICMP access"
 }
 
+## EternalTerminal security group
+resource "openstack_networking_secgroup_v2" "eternalterminal" {
+  region      = var.region
+  name        = "${var.name}_eternalterminal"
+  description = "Security group for EternalTerminal (depends on SSH)"
+}
+
 # Allow ssh from IPv4 net
 resource "openstack_networking_secgroup_rule_v2" "rule_ssh_access_ipv4" {
   count             = length(var.allow_ssh_from_v4)
@@ -155,6 +162,32 @@ resource "openstack_networking_secgroup_rule_v2" "rule_smtp_access_ipv4" {
   security_group_id = openstack_networking_secgroup_v2.basic.id
 }
 
+# Allow EternalTerminal from IPv4 net
+resource "openstack_networking_secgroup_rule_v2" "rule_eternalterminal_access_ipv4" {
+  count             = length(var.allow_eternalterminal_from_v4)
+  region            = var.region
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 2022
+  port_range_max    = 2022
+  remote_ip_prefix  = element(var.allow_eternalterminal_from_v4, count.index)
+  security_group_id = openstack_networking_secgroup_v2.eternalterminal.id
+}
+
+# Allow EternalTerminal from IPv6 net
+resource "openstack_networking_secgroup_rule_v2" "rule_eternalterminal_access_ipv6" {
+  count             = length(var.allow_eternalterminal_from_v6)
+  region            = var.region
+  direction         = "ingress"
+  ethertype         = "IPv6"
+  protocol          = "tcp"
+  port_range_min    = 2022
+  port_range_max    = 2022
+  remote_ip_prefix  = element(var.allow_eternalterminal_from_v6, count.index)
+  security_group_id = openstack_networking_secgroup_v2.eternalterminal.id
+}
+
 # Get image id for image name
 # this is only used if image_id is empty
 data "openstack_images_image_v2" "image" {
@@ -171,7 +204,7 @@ resource "openstack_compute_instance_v2" "node" {
   flavor_name       = var.flavor
   key_pair          = "${var.name}-keys"
   availability_zone = "${var.region}-${var.az}"
-  security_groups   = concat(["default", "${var.name}_basic"], var.sec_group)
+  security_groups   = concat(["default", "${var.name}_basic", "${var.name}_eternalterminal"], var.sec_group)
 
   lifecycle {
     ignore_changes = [image_name, image_id, user_data, flavor_name, flavor_id]
